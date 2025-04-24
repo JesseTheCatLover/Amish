@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class BackgroundObjectCreator
 {
-    [MenuItem("GameObject/Background Object", false, 10)]
+    [MenuItem("GameObject/JObject/Background Object", false, 10)]
     public static void CreateBackgroundObject(MenuCommand menuCommand)
     {
         // Create the root object

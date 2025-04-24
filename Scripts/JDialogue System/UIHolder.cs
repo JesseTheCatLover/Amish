@@ -1,14 +1,14 @@
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace JDialogue_System
 {
     public class UIHolder : MonoBehaviour
     {
-        [Header("Configuration")]
-        [SerializeField] private JDialogueAssetMapping dialogueAssetMapping;
+        [Header("Mapping Configuration")]
+        [SerializeField] public JDialogueAssetMapping dialogueAssetMapping;
         [SerializeField] public JDialoguePanelMapping dialoguePanelMapping;
         
         [Header("Dialogue Elements")]
@@ -26,46 +26,48 @@ namespace JDialogue_System
             public GameObject companionPanelObject;
         }
         
-        private Dictionary<string, GameObject> panelObjects = new();
-        private Dictionary<string, GameObject> companionPanelObjects = new();
-        
+        private Dictionary<string, GameObject> dictMainPanelObjects = new();
+        private Dictionary<string, GameObject> dictCompanionPanelObjects = new();
+
+        private PortraitListEntry lastCompanionRendered;
+            
         private void Awake()
         {
             RefreshPanelReferences();
         }
 
-        public void RefreshPanelReferences()
+        private void RefreshPanelReferences()
         {
-            panelObjects.Clear();
-            companionPanelObjects.Clear();
+            dictMainPanelObjects.Clear();
+            dictCompanionPanelObjects.Clear();
 
             foreach (var pair in panelReferences)
             {
                 if (!string.IsNullOrWhiteSpace(pair.panelName))
-                    panelObjects[pair.panelName] = pair.mainPanelObject;
+                    dictMainPanelObjects[pair.panelName] = pair.mainPanelObject;
 
                 if (pair.companionPanelObject != null)
-                    companionPanelObjects[pair.panelName] = pair.companionPanelObject;
+                    dictCompanionPanelObjects[pair.panelName] = pair.companionPanelObject;
             }
         }
-        
-        public GameObject GetPanelForCharacter(string character)
+
+        private GameObject GetMainPanelForCharacter(string character)
         {
             foreach (var entry in dialoguePanelMapping.panels)
             {
                 if (entry.assignedCharacters.Contains(character))
-                    return panelObjects.TryGetValue(entry.panelName, out var obj) ? obj : null;
+                    return dictMainPanelObjects.TryGetValue(entry.panelName, out var obj) ? obj : null;
             }
 
             return null;
         }
 
-        public GameObject GetCompanionPanelForCharacter(string character)
+        private GameObject GetCompanionPanelForCharacter(string character)
         {
             foreach (var entry in dialoguePanelMapping.panels)
             {
                 if (entry.assignedCharacters.Contains(character) && entry.hasCompanion)
-                    return companionPanelObjects.TryGetValue(entry.panelName, out var obj) ? obj : null;
+                    return dictCompanionPanelObjects.TryGetValue(entry.panelName, out var obj) ? obj : null;
             }
 
             return null;
@@ -79,40 +81,67 @@ namespace JDialogue_System
                 return;
             }
             dialogueBox.text = entry.Dialogue;
-            characterNameBox.text = entry.IsAnonymous ? dialogueAssetMapping.anonymousCharacter.shownAs : 
-                dialogueAssetMapping.GetCharacterDisplayName(entry.Character);
-            ChangeSprites(entry);
+            if (entry.CompanionCharacter == null) // Single-character dialogue
+            {
+                characterNameBox.text = entry.MainCharacter.IsAnonymous ? dialogueAssetMapping.anonymousCharacter.shownAs : 
+                    dialogueAssetMapping.GetCharacterDisplayName(entry.MainCharacter.CharacterKey);
+                ChangeSprites(entry.MainCharacter);
+            }
+            else // Dual-character dialogue
+            {
+                string mainDisplayName = entry.MainCharacter.IsAnonymous ? dialogueAssetMapping.anonymousCharacter.shownAs :
+                    dialogueAssetMapping.GetCharacterDisplayName(entry.MainCharacter.CharacterKey);
+                string companionDisplayName = entry.CompanionCharacter.IsAnonymous ? dialogueAssetMapping.anonymousCharacter.shownAs :
+                    dialogueAssetMapping.GetCharacterDisplayName(entry.CompanionCharacter.CharacterKey);
+                
+                characterNameBox.text = mainDisplayName + " & " + companionDisplayName;
+                ChangeSprites(entry.MainCharacter, entry.CompanionCharacter);
+            }
         }
     
         public void HideUI()
         {
             gameObject.SetActive(false);
         }
-    
-        private void ChangeSprites(DialogueListEntry entry)
-        { 
-            // TODO: make a right and left specifier later.
+
+        private void ChangeSprites([CanBeNull] PortraitListEntry mainEntry, [CanBeNull] PortraitListEntry compEntry = null)
+        {
+            if(dialogueAssetMapping.IsPortraitAvailableForCharacter(mainEntry?.CharacterKey))
+                SetCharacterSprites(mainEntry, GetMainPanelForCharacter(mainEntry?.CharacterKey));
+
+            if (dialogueAssetMapping.IsPortraitAvailableForCharacter(compEntry?.CharacterKey))
+            {
+                if (compEntry != null) // has companion
+                {
+                    SetCharacterSprites(compEntry, GetCompanionPanelForCharacter(compEntry.CharacterKey));
+                    lastCompanionRendered = compEntry; // A reference to the last companion
+                }
+                else
+                {
+                    if (lastCompanionRendered != null) // a last companion exists
+                    {
+                        SetCharacterSprites(null, GetCompanionPanelForCharacter(lastCompanionRendered.CharacterKey));
+                    }
+                }
+            }
+        }
         
-            /*
-        // Change Body Image (Tag: "Body")
-        Image bodyImage = GameObject.FindWithTag("Body")?.GetComponent<Image>();
-        if (bodyImage != null)
-            bodyImage.sprite = dialogueAssetMapping.Get; */
+        private void SetCharacterSprites([CanBeNull] PortraitListEntry entry, GameObject panel)
+        {
+            if (panel == null)
+            {
+                Debug.LogError($"{this.GetType().Name}: Panel is not set in for character key ({entry?.CharacterKey})");
+                return;
+            }
 
-            // Change Head Image (Tag: "Head")
-            Image headImage = GameObject.FindWithTag("Head")?.GetComponent<Image>();
-            if (headImage != null)
-                headImage.sprite = dialogueAssetMapping.GetFaceSprite(entry.Character, entry.Face);
-
-            // Change LeftHand Image (Tag: "LeftHand")
-            Image leftHandImage = GameObject.FindWithTag("LeftHand")?.GetComponent<Image>();
-            if (leftHandImage != null)
-                leftHandImage.sprite = dialogueAssetMapping.GetLeftHandSprite(entry.Character, entry.LeftHand);
-
-            // Change RightHand Image (Tag: "RightHand")
-            Image rightHandImage = GameObject.FindWithTag("RightHand")?.GetComponent<Image>();
-            if (rightHandImage != null)
-                rightHandImage.sprite = dialogueAssetMapping.GetRightHandSprite(entry.Character, entry.RightHand);
+            if (dialogueAssetMapping.IsPortraitAvailableForCharacter(entry?.CharacterKey))
+            {
+                PortraitRenderer renderer = panel.GetComponentInChildren<PortraitRenderer>();
+                if (renderer)
+                    renderer.ApplyPortrait(entry, dialogueAssetMapping);
+                else
+                    Debug.LogWarning($"[{this.GetType().Name}] No PortraitRenderer found in panel {panel.name}");
+            }
         }
     }
 }

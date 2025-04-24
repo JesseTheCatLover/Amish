@@ -14,7 +14,18 @@ public class PlayerInputHandler : MonoBehaviour
         if (InputActionAsset != null)
         {
             var actionMap = InputActionAsset.FindActionMap("UI", true);
-            NextDialogueAction = actionMap.FindAction("OnNextDialogue", true);
+            if (actionMap != null)
+            {
+                NextDialogueAction = actionMap.FindAction("OnNextDialogue", true);
+            }
+            else
+            {
+                Debug.LogError($"[{name}]: UI Action Map not found!");
+            }
+        }
+        else
+        {
+            Debug.LogError($"[{name}]: InputActionAsset is not assigned!");
         }
     }
 
@@ -38,6 +49,6 @@ public class PlayerInputHandler : MonoBehaviour
     
     private void OnNextDialogue(InputAction.CallbackContext context)
     {
-        DialogueManager.TriggerNextDialogue();
+        JDialogueRunner.TriggerNextDialogue();
     }
 }

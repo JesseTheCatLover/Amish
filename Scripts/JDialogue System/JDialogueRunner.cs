@@ -1,19 +1,18 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace JDialogue_System
 {
-    public class DialogueManager : MonoBehaviour
+    public class JDialogueRunner : MonoBehaviour
     {
         [SerializeField] private List<TextAsset> jDialogueFiles; // List of .jdialogue files
-        private UIHolder _uiHolder; // Reference to UI Manager
+        private UIHolder _uiHolder; // Reference to UIHolder
         private List<DialogueListEntry> _dialogueEntries;
         private int _currentIndex = 0;
-        public static event Action OnNextDialogueTriggered; // Define an event for dialogue progression
+        public static JDialogueRunner ActiveRunner { get; private set; }
     
         // Set the language you want
-        private Languages _selectedLanguage = Languages.English; // TODO: Make it select from the settings
+        private Languages _selectedLanguage = Languages.English; // TODO: Make it select from the settings (should recieve it from the UIHolder or smth)
     
         private void Awake()
         {
@@ -24,19 +23,32 @@ namespace JDialogue_System
             }
         }
     
-        private void OnEnable()
-        {
-            OnNextDialogueTriggered += ProceedToNextDialogue;
-        }
-
-        private void OnDisable()
-        {
-            OnNextDialogueTriggered -= ProceedToNextDialogue;
-        }
-        private void Start() // TODO: Define a trigger for start of the dialogue
+        private void Start()
         {
             ParseAllDialogues();
+            SetAsActiveRunnerAndStart(); // TODO : called in the Start() for now
+        }
+        
+        public void SetAsActiveRunnerAndStart()
+        {
+            if (ActiveRunner != null && ActiveRunner != this)
+            {
+                Debug.LogWarning($"Overriding previously active dialogue runner: {gameObject.name} - {ActiveRunner.name}");
+            }
+
+            ActiveRunner = this;
+            _currentIndex = 0;
             StartDialogue();
+        }
+        
+        public static void TriggerNextDialogue()
+        {
+            if (ActiveRunner == null)
+            {
+                Debug.LogError("No active dialogue runner found to proceed to the next dialogue! make sure ActiveRunner is set.");
+                return;
+            }
+            ActiveRunner.ProceedToNextDialogue();
         }
 
         private void ParseAllDialogues()
@@ -51,7 +63,7 @@ namespace JDialogue_System
             }
         }
 
-        public void StartDialogue()
+        private void StartDialogue()
         {
             if (_dialogueEntries.Count > 0)
             {
@@ -64,7 +76,7 @@ namespace JDialogue_System
             _uiHolder?.UpdateDialogue(entry);
         }
 
-        public void ProceedToNextDialogue()
+        private void ProceedToNextDialogue()
         {
             _currentIndex++;
             if (_currentIndex < _dialogueEntries.Count)
@@ -80,12 +92,9 @@ namespace JDialogue_System
         private void EndDialogue()
         {
             //DialogueUI?.HideUI();
-            Debug.Log("Dialogue finished!");
-        }
-    
-        public static void TriggerNextDialogue()
-        {
-            OnNextDialogueTriggered?.Invoke();
+            Debug.Log($"Dialogue finished for {gameObject.name}");
+            if (ActiveRunner == this)
+                ActiveRunner = null;
         }
     }
 }

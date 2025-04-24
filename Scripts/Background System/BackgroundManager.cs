@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using JUtils;
 using UnityEngine;
 
 namespace Background_System
@@ -54,12 +55,12 @@ namespace Background_System
         {
             if (list == null) // lost reference
             {
-                ClearParentGroup(parent);
+                GameObjectUtils.ClearChildren(parent);
             }
             foreach (var item in list)
             {
                 if (item)
-                    SmartDestroy(item);
+                    GameObjectUtils.SmartDestroy(item);
             }
             list.Clear();
         }
@@ -74,36 +75,6 @@ namespace Background_System
 
                 var instance = Instantiate(prefab, parent);
                 targetList.Add(instance);
-            }
-        }
-
-        private void ClearParentGroup(Transform parent)
-        {
-            if (parent.childCount > 0)
-            {
-                foreach (Transform item in parent)
-                {
-                    SmartDestroy(item);
-                }
-            }
-        }
-        
-        private void SmartDestroy(UnityEngine.Object obj) // TODO: should move it in a utility calss later
-        {
-            if (obj == null)
-            {
-                return;
-            }
-
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                GameObject.DestroyImmediate(obj);
-            }
-            else
-#endif
-            {
-                GameObject.Destroy(obj);
             }
         }
     }
