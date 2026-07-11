@@ -7,3 +7,6 @@
 .idea/
 *.sln
 *.csproj
+
+# Ignore Unity meta files
+*.meta
